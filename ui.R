@@ -13,5 +13,14 @@ fluidPage(
     label = 'Year',
     choices = unique(with_GS$year)
   ),
-  plotOutput('GS')
+  fluidRow(
+    column(6, plotOutput("GS")),
+    column(6, plotOutput("pcts"))
+  ),
+  fluidRow(
+    column(12, plotOutput("matchups"))
+  ),
+  fluidRow(
+    column(12, plotOutput("correlation"))
+  )
 )

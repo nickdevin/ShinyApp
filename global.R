@@ -3,7 +3,7 @@ library(tidyr)
 library(ggplot2)
 library(shiny)
 
-matchstats = read.csv(file = './charting-w-stats-Overview.csv')
+matchstats = read.csv(file = '../charting-w-stats-Overview.csv')
 
 matchstats = matchstats %>%
   separate(
@@ -96,15 +96,15 @@ playerstats$set = as.numeric(playerstats$set)
 #----------------------------
 
 file_names = sapply(2012:2020,
-                   function(s) {
-                     paste('./wta_matches_', s, '.csv', sep = '')
-                   })
+                    function(s) {
+                      paste('../wta_matches_', s, '.csv', sep = '')
+                    })
 files_list = lapply(file_names, function(file) {
   read.csv(file, header = TRUE)
 })
 
 files_list = lapply(files_list, function(df) {
-  df %>% 
+  df %>%
     select(.,
            tourney_name,
            tourney_date,
@@ -113,297 +113,298 @@ files_list = lapply(files_list, function(df) {
            score)
 })
 
-bind_rows(files_list)
+DF = bind_rows(files_list)
+DF
 
-style_by_year = function(s) {
-  DF = read.csv(file = paste('../wta_matches_', s, '.csv', sep = ''),
-                header = TRUE)
-  DF$year = sapply(DF$tourney_date, function(x) {
-    substr(x, 1, 4)
-  })
-  
-  DF2 = DF %>%
-    separate(
-      .,
-      score,
-      sep = ' ',
-      into = c('set1', 'set2', 'set3', 'set4'),
-      fill = 'right'
-    )
-  
-  DF_set1 = DF2 %>%
-    select(., year,
-           tourney_name,
-           winner_name,
-           loser_name,
-           setscore = set1) %>%
-    mutate(., set = 1)
-  
-  DF_set2 = DF2 %>%
-    select(., year,
-           tourney_name,
-           winner_name,
-           loser_name,
-           setscore = set2) %>%
-    mutate(., set = 2)
-  
-  DF_set3 = DF2 %>%
-    select(., year,
-           tourney_name,
-           winner_name,
-           loser_name,
-           setscore = set3) %>%
-    mutate(., set = 3)
-  
-  DF_sets = bind_rows(DF_set1, DF_set2, DF_set3) %>%
-    filter(
-      .,
-      !grepl("[a-z]|]|\\[", setscore, ignore.case = TRUE),
-      setscore != '',
-      !is.na(setscore)
-    ) %>%
-    mutate(.,
-           setscore = sub(
-             pattern = '\\(.*\\)',
-             replacement = '',
-             x = setscore
-           )) %>%
-    separate(.,
-             setscore,
-             into = c('games1', 'games2'),
-             sep = '-') %>%
-    mutate(
-      .,
-      games1 = as.numeric(games1),
-      games2 = as.numeric(games2),
-      winner_name2 = ifelse(games1 > games2,
-                            yes = winner_name,
-                            no = loser_name),
-      loser_name2 = ifelse(games1 < games2,
-                           yes = winner_name,
-                           no = loser_name)
-    ) %>%
-    select(
-      .,
-      year,
-      tourney_name,
-      winner_name = winner_name2,
-      loser_name = loser_name2,
-      games1,
-      games2,
-      set
-    )
-  
-  DF_sets$tourney_name = tolower(x = DF_sets$tourney_name)
-  
-  placeholder1 = inner_join(
-    DF_sets,
-    playerstats,
-    by = c(
-      'year',
-      'tourney_name',
-      'winner_name' = 'player_1',
-      'loser_name' = 'player_2',
-      'set'
-    )
+# style_by_year = function(s) {
+#   DF = read.csv(file = paste('../wta_matches_', s, '.csv', sep = ''),
+#                 header = TRUE)
+
+DF$year = sapply(DF$tourney_date, function(x) {
+  substr(x, 1, 4)
+})
+
+DF2 = DF %>%
+  separate(
+    .,
+    score,
+    sep = ' ',
+    into = c('set1', 'set2', 'set3', 'set4'),
+    fill = 'right'
+  )
+head(DF2)
+
+DF_set1 = DF2 %>%
+  select(., year,
+         tourney_name,
+         winner_name,
+         loser_name,
+         setscore = set1) %>%
+  mutate(., set = 1)
+
+DF_set2 = DF2 %>%
+  select(., year,
+         tourney_name,
+         winner_name,
+         loser_name,
+         setscore = set2) %>%
+  mutate(., set = 2)
+
+DF_set3 = DF2 %>%
+  select(., year,
+         tourney_name,
+         winner_name,
+         loser_name,
+         setscore = set3) %>%
+  mutate(., set = 3)
+
+DF_sets = bind_rows(DF_set1, DF_set2, DF_set3) %>%
+  filter(
+    .,!grepl("[a-z]|]|\\[", setscore, ignore.case = TRUE),
+    setscore != '',!is.na(setscore)
   ) %>%
-    select(
-      .,
-      year,
-      tourney_name,
-      winner_name,
-      loser_name,
-      winner_winners = player_1_winners,
-      winner_unforced = player_1_unforced,
-      loser_winners = player_2_winners,
-      loser_unforced = player_2_unforced,
-      games1,
-      games2
-    )
-  
-  placeholder2 = inner_join(
-    DF_sets,
-    playerstats,
-    by = c(
-      'year',
-      'tourney_name',
-      'winner_name' = 'player_2',
-      'loser_name' = 'player_1',
-      'set'
-    )
+  mutate(.,
+         setscore = sub(
+           pattern = '\\(.*\\)',
+           replacement = '',
+           x = setscore
+         )) %>%
+  separate(.,
+           setscore,
+           into = c('games1', 'games2'),
+           sep = '-') %>%
+  mutate(
+    .,
+    games1 = as.numeric(games1),
+    games2 = as.numeric(games2),
+    winner_name2 = ifelse(games1 > games2,
+                          yes = winner_name,
+                          no = loser_name),
+    loser_name2 = ifelse(games1 < games2,
+                         yes = winner_name,
+                         no = loser_name)
   ) %>%
-    select(
-      .,
-      year,
-      tourney_name,
-      winner_name,
-      loser_name,
-      winner_winners = player_2_winners,
-      winner_unforced = player_2_unforced,
-      loser_winners = player_1_winners,
-      loser_unforced = player_1_unforced,
-      games1,
-      games2
-    )
-  
-  master = bind_rows(placeholder1, placeholder2) %>%
-    mutate(
-      .,
-      winner_games = pmax(games1, games2),
-      loser_games = pmin(games1, games2)
-    ) %>%
-    select(., -games1, -games2)
+  select(
+    .,
+    year,
+    tourney_name,
+    winner_name = winner_name2,
+    loser_name = loser_name2,
+    games1,
+    games2,
+    set
+  )
 
-  master_W = master %>%
-    select(
-      .,
-      name = winner_name,
-      winners = winner_winners,
-      unforced = winner_unforced,
-      games_won = winner_games,
-      games_lost = loser_games
-    )
-  
-  master_L = master %>%
-    select(
-      .,
-      name = loser_name,
-      winners = loser_winners,
-      unforced = loser_unforced,
-      games_won = loser_games,
-      games_lost = winner_games
-    )
-  
-  master_allsets = bind_rows(master_W, master_L)
+DF_sets
 
-  
-  master_means = master_allsets %>%
-    group_by(., name) %>%
-    summarise(
-      .,
-      mean_per_game = sum(winners + unforced) / sum(games_won + games_lost),
-      winners_to_unforced_ratio = sum(winners) / (sum(unforced))
-    )
+DF_sets$tourney_name = tolower(x = DF_sets$tourney_name)
 
-  
-  mmpg = mean(master_means$mean_per_game)
-  
-  mwur = median(master_means$winners_to_unforced_ratio)
-  
-  master_means$aggression =
-    case_when(
-      master_means$mean_per_game >= mmpg ~ 'aggressive',
-      master_means$mean_per_game < mmpg ~ 'defensive'
-    )
-  
-  master_means$consistency =
-    case_when(
-      master_means$winners_to_unforced_ratio >= mwur ~ 'consistent',
-      master_means$winners_to_unforced_ratio < mwur ~ 'inconsistent'
-    )
+placeholder1 = inner_join(
+  DF_sets,
+  playerstats,
+  by = c(
+    'year',
+    'tourney_name',
+    'winner_name' = 'player_1',
+    'loser_name' = 'player_2',
+    'set'
+  )
+) %>%
+  select(
+    .,
+    year,
+    tourney_name,
+    winner_name,
+    loser_name,
+    winner_winners = player_1_winners,
+    winner_unforced = player_1_unforced,
+    loser_winners = player_2_winners,
+    loser_unforced = player_2_unforced,
+    games1,
+    games2
+  )
 
-  master_means = master_means %>%
-    unite(., style, aggression, consistency, sep = ', ')
+placeholder2 = inner_join(
+  DF_sets,
+  playerstats,
+  by = c(
+    'year',
+    'tourney_name',
+    'winner_name' = 'player_2',
+    'loser_name' = 'player_1',
+    'set'
+  )
+) %>%
+  select(
+    .,
+    year,
+    tourney_name,
+    winner_name,
+    loser_name,
+    winner_winners = player_2_winners,
+    winner_unforced = player_2_unforced,
+    loser_winners = player_1_winners,
+    loser_unforced = player_1_unforced,
+    games1,
+    games2
+  )
 
-  style_counts =  master_means %>%
-    group_by(., style) %>%
-    summarise(., percent = n() / nrow(master_means))
+master = bind_rows(placeholder1, placeholder2) %>%
+  mutate(.,
+         winner_games = pmax(games1, games2),
+         loser_games = pmin(games1, games2)) %>%
+  select(.,-games1,-games2)
 
-  just_styles = master_means %>%
-    select(., name, style)
+master
 
-  
-  W_UE_by_style = inner_join(master_allsets,
-                             just_styles,
-                             by = 'name')
+master_W = master %>%
+  select(
+    .,
+    year,
+    name = winner_name,
+    winners = winner_winners,
+    unforced = winner_unforced,
+    games_won = winner_games,
+    games_lost = loser_games
+  )
 
-  WL_by_style =  inner_join(master, just_styles, by = c('winner_name' = 'name')) %>%
-    rename(.,
-           winner_style = style) %>%
-    inner_join(., just_styles, by = c('loser_name' = 'name')) %>%
-    rename(.,
-           loser_style = style)
+master_L = master %>%
+  select(
+    .,
+    year,
+    name = loser_name,
+    winners = loser_winners,
+    unforced = loser_unforced,
+    games_won = loser_games,
+    games_lost = winner_games
+  )
 
-  
-  style_matchups = WL_by_style %>%
-    group_by(.,
-             winner_style,
-             loser_style) %>%
-    summarise(.,
-              winner_games = sum(winner_games),
-              loser_games = sum(loser_games)) %>%
-    filter(.,
-           (winner_style != loser_style))
+master_allsets = bind_rows(master_W, master_L)
+master_allsets
 
-  
-  test_1 = style_matchups %>%
-    select(
-      style = winner_style,
-      opponent = loser_style,
-      p1_games = winner_games,
-      p2_games = loser_games
-    )
-  
-  test_2 = style_matchups %>%
-    select(
-      style = loser_style,
-      opponent = winner_style,
-      p1_games = loser_games,
-      p2_games = winner_games
-    )
-  
-  style_matchups = bind_rows(test_1, test_2) %>%
-    group_by(., style, opponent) %>%
-    summarise(., win_percent = sum(p1_games) / sum(p1_games + p2_games))
-  
-  
-  style_win_pcts = W_UE_by_style %>%
-    group_by(., style) %>%
-    summarise(.,
-              games_won = sum(games_won),
-              games_lost = sum(games_lost),
-              win_percent = sum(games_won) / sum(games_won + games_lost))
-  
-  
-  return(
-    list(
-      master_means,
-      style_win_pcts,
-      style_counts,
-      style_matchups,
-      W_UE_by_style
+
+master_means = master_allsets %>%
+  group_by(., year, name) %>%
+  summarise(
+    .,
+    mean_per_game = sum(winners + unforced) / sum(games_won + games_lost),
+    winners_to_unforced_ratio = sum(winners) / (sum(unforced))
+  )
+master_means
+
+yearly_means = master_means %>% 
+  group_by(., year) %>% 
+  summarise(.,
+            mmpg = mean(mean_per_game),
+            mwur = median(winners_to_unforced_ratio))
+
+master_means = inner_join(master_means, yearly_means) %>%
+  mutate(
+    .,
+    aggression = case_when(
+      mean_per_game >= mmpg ~ 'aggressive',
+      mean_per_game < mmpg ~ 'defensive'
+    ),
+    consistency =   case_when(
+      winners_to_unforced_ratio >= mwur ~ 'consistent',
+      winners_to_unforced_ratio < mwur ~ 'inconsistent'
     )
   )
-}
+
+master_means = master_means %>%
+  unite(., style, aggression, consistency, sep = ', ')
+
+style_counts =  master_means %>%
+  group_by(., year) %>%
+  summarise(., year, style, number = n()) %>% 
+  group_by(., year, style) %>% 
+  summarise(., percent = n() / mean(number))
+style_counts
+
+
+just_styles = master_means %>%
+  select(., year, name, style)
+
+
+W_UE_by_style = inner_join(master_allsets,
+                           just_styles,
+                           by = c('name', 'year'))
+W_UE_by_style
+
+
+WL_by_style =  inner_join(master,
+                          just_styles,
+                          by = c('winner_name' = 'name', 'year')) %>%
+  rename(.,
+         winner_style = style) %>%
+  inner_join(., just_styles, by = c('loser_name' = 'name', 'year')) %>%
+  rename(.,
+         loser_style = style)
+WL_by_style
+
+
+style_matchups = WL_by_style %>%
+  group_by(.,
+           year,
+           winner_style,
+           loser_style) %>%
+  summarise(.,
+            winner_games = sum(winner_games),
+            loser_games = sum(loser_games)) %>%
+  filter(.,
+         (winner_style != loser_style))
+style_matchups
+
+
+test_1 = style_matchups %>%
+  select(
+    year,
+    style = winner_style,
+    opponent = loser_style,
+    p1_games = winner_games,
+    p2_games = loser_games
+  )
+
+test_2 = style_matchups %>%
+  select(
+    year,
+    style = loser_style,
+    opponent = winner_style,
+    p1_games = loser_games,
+    p2_games = winner_games
+  )
+
+style_matchups = bind_rows(test_1, test_2) %>%
+  group_by(., year, style, opponent) %>%
+  summarise(., win_percent = sum(p1_games) / sum(p1_games + p2_games))
+style_matchups
+
+
+style_win_pcts = W_UE_by_style %>%
+  group_by(., year, style) %>%
+  summarise(
+    .,
+    games_won = sum(games_won),
+    games_lost = sum(games_lost),
+    win_percent = sum(games_won) / sum(games_won + games_lost)
+  )
+style_win_pcts
+
+
+#   return(
+#     list(
+#       master_means, --->players.ratios.style
+#       style_win_pcts, --->win.pct.by.style
+#       style_counts, --->style.counts
+#       style_matchups --->style.matchups
+#       W_UE_by_style --->by.style
+#     )
+#   )
+# }
 
 
 
-players.ratios.style = bind_rows(lapply(2012:2020, function(x) {
-  D = style_by_year(x)[[1]] %>%
-    mutate(., year = x)
-}))
 
-win.pct.by.style = bind_rows(lapply(2012:2020, function(x) {
-  D = style_by_year(x)[[2]] %>%
-    mutate(., year = x)
-}))
-
-style.counts = bind_rows(lapply(2012:2020, function(x) {
-  D = style_by_year(x)[[3]] %>%
-    mutate(., year = x) %>%
-    select(., year, style, percent)
-}))
-
-
-style.matchups = bind_rows(lapply(2012:2020, function(x) {
-  D = style_by_year(x)[[4]] %>%
-    mutate(., year = x)
-}))
-
-by.style = bind_rows(lapply(2012:2020, function(x) {
-  D = style_by_year(x)[[5]] %>%
-    mutate(., year = x)
-}))
 
 
 year = rep(2012:2020, c(4, 4, 4, 4, 4, 4, 4, 4, 4))
@@ -418,7 +419,8 @@ style = rep(
 )
 
 
-correlation_df = by.style %>% 
+
+correlation_df = W_UE_by_style %>% 
   group_by(., name) %>% 
   summarise(.,
             mmpg = sum(winners + unforced) / sum(games_won + games_lost),
@@ -436,9 +438,7 @@ correlation_df = by.style %>%
   gather(., corr.between, corr.coef, 2:5)
 
 
-
-
-with_GS = players.ratios.style %>%
+with_GS = master_means %>%
   mutate(
     .,
     GS = case_when(
@@ -502,11 +502,38 @@ GS_plot = function(yr, df) {
     ggplot(aes(x = mean_per_game, y = winners_to_unforced_ratio)) +
     geom_point(data = df %>% filter(., GS == 'no'),
                aes(color = style),
-               size = 0.5) +
+               size = 2) +
     scale_color_brewer(palette = "RdGy") +
     geom_point(
       data = df %>% filter(., GS == 'yes'),
       color = 'green',
-      size = 1)
-    return(scatter.year)  
+      size = 4)
+    return(scatter.year)
 }
+
+win_percent_plot = function(yr, df) {
+  df = filter(df, year == yr)
+  pcts.bar = df %>% 
+    ggplot(., aes(x = style, y = win_percent)) + 
+    geom_col(aes(fill = style)) +
+    scale_fill_brewer(palette = 'RdGy')
+  return(pcts.bar)
+}
+
+matchups_plot = function(yr, df) {
+  df = filter(df, year == yr)
+  matchups.bar = df %>%
+    ggplot(., aes(x = style, y = win_percent)) +
+    geom_col(aes(fill = opponent), position = 'dodge') +
+    scale_fill_brewer(palette = 'RdGy')
+  return(matchups.bar)
+}
+
+corr_plot = correlation_df %>% 
+  ggplot(aes(x = style, y = corr.between,)) +
+  geom_tile(aes(fill = corr.coef, ), colour = 'black') +
+  scale_fill_gradient2(
+    low = "darkred",
+    high = "darkblue",
+    mid = "white",
+    midpoint = 0)
