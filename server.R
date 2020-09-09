@@ -23,4 +23,20 @@ function(input, output) {
     output$correlation = renderPlot(
         corr_plot
     )
+    
+    output$counts = renderPlot(
+        counts_plot
+    )
+    
+    output$mean_per_game = renderPlot(
+        aggro_plot(input$year, master_means)
+    )
+    
+    output$ratios = renderPlot(
+        means_plot(input$year2, for_ratios_histogram, input$ratio)
+    )
+    
+    output$GS_winners = renderPlot(
+        GS_winners_plot(input$player)
+    )
 }

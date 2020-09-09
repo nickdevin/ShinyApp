@@ -403,6 +403,10 @@ style_win_pcts
 # }
 
 
+for_ratios_histogram = master_means %>% 
+  gather(., key = stat_type, value = ratio, mean_per_game:winners_to_unforced_ratio) %>% 
+  select(year, stat_type, ratio)
+
 
 
 
@@ -507,16 +511,25 @@ GS_plot = function(yr, df) {
     geom_point(
       data = df %>% filter(., GS == 'yes'),
       color = 'green',
-      size = 4)
+      size = 4) +
+    xlab('Number of winners and unforced errors per game') +
+      ylab('Ratio of winners to unforced errors') +
+      ggtitle('Scatter plot of aggression vs. consistency',
+              subtitle = 'Points corresponding to Grand Slam winners are in green')
     return(scatter.year)
 }
 
 win_percent_plot = function(yr, df) {
   df = filter(df, year == yr)
-  pcts.bar = df %>% 
-    ggplot(., aes(x = style, y = win_percent)) + 
+  pcts.bar = df %>%
+    ggplot(., aes(x = style, y = win_percent*100)) +
     geom_col(aes(fill = style)) +
-    scale_fill_brewer(palette = 'RdGy')
+    scale_fill_brewer(palette = 'RdGy') +
+    xlab('Style') +
+    ggtitle('% games won by player style') +
+    ylab('Win %') +
+    theme(axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())
   return(pcts.bar)
 }
 
@@ -533,7 +546,38 @@ corr_plot = correlation_df %>%
   ggplot(aes(x = style, y = corr.between,)) +
   geom_tile(aes(fill = corr.coef, ), colour = 'black') +
   scale_fill_gradient2(
-    low = "darkred",
-    high = "darkblue",
+    low = "firebrick",
+    high = "blue",
     mid = "white",
     midpoint = 0)
+
+counts_plot = style_counts %>%
+  ggplot(aes(x = year, y = percent)) +
+  geom_col(aes(fill = style), position = 'fill') +
+  scale_fill_brewer(palette = 'RdGy')
+
+
+means_plot = function(yr, df, measurement) {
+  df = filter(df, year == yr, stat_type == measurement)
+  consistency_histogram = df %>% 
+    ggplot(aes(x = ratio)) +
+    geom_histogram(color = 'black', fill = 'lavender', bins = 20)
+  return(consistency_histogram)
+}
+
+GS_winners = unique(with_GS[with_GS$GS == 'yes',]$name)
+
+
+GS_winners_plot = function(player) {
+  winners_chart = inner_join(master_allsets, with_GS, by = c('name', 'year')) %>% 
+    select(year, name, games_won, games_lost, GS) %>% 
+    filter(., name == player) %>% 
+    group_by(., year, name) %>% 
+    summarise(., win_percent = sum(games_won)/sum(games_won + games_lost), GS) %>%
+    distinct(.) %>% 
+    inner_join(., just_styles, by = c('year', 'name')) %>% 
+    ggplot(., aes(x = year, y = win_percent)) +
+    geom_col(aes(fill = style, color = GS), size = 2) +
+    scale_fill_brewer(palette = 'RdGy')
+  return(winners_chart)
+}
