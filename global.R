@@ -2,9 +2,11 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(shiny)
+library(shinyWidgets)
 
-matchstats = read.csv(file = '../charting-w-stats-Overview.csv')
+matchstats = read.csv(file = './charting-w-stats-Overview.csv')
 
+# The column 'match_id' needs to be split into more useful categories
 matchstats = matchstats %>%
   separate(
     .,
@@ -21,6 +23,8 @@ matchstats = matchstats %>%
   ) %>%
   filter(., set != 'Total')
 
+
+# Cleaning up strings
 matchstats$player_1 =
   sapply(matchstats$player_1, function(x) {
     gsub(x, pattern = '_', replacement = ' ')
@@ -39,10 +43,13 @@ matchstats$tourney_name =
 matchstats$tourney_name =
   sapply(matchstats$tourney_name, tolower)
 
+
+# Only need year in which match was played
 matchstats$year = sapply(matchstats$match_date, function(x) {
   substr(x, 1, 4)
 })
 
+# Selecting relevant columns
 matchstats = matchstats %>%
   select(.,
          year,
@@ -54,6 +61,8 @@ matchstats = matchstats %>%
          unforced,
          set)
 
+
+# Separating match statistics by player
 player1stats = matchstats %>%
   filter(., player == 1) %>%
   select(
@@ -97,7 +106,7 @@ playerstats$set = as.numeric(playerstats$set)
 
 file_names = sapply(2012:2020,
                     function(s) {
-                      paste('../wta_matches_', s, '.csv', sep = '')
+                      paste('./wta_matches_', s, '.csv', sep = '')
                     })
 files_list = lapply(file_names, function(file) {
   read.csv(file, header = TRUE)
@@ -113,17 +122,19 @@ files_list = lapply(files_list, function(df) {
            score)
 })
 
+# Combine data from all years into one large data frame
 DF = bind_rows(files_list)
-DF
 
-# style_by_year = function(s) {
-#   DF = read.csv(file = paste('../wta_matches_', s, '.csv', sep = ''),
-#                 header = TRUE)
-
+# Again only need year from tournament date
 DF$year = sapply(DF$tourney_date, function(x) {
   substr(x, 1, 4)
 })
 
+# Separate match score into separate sets
+# Although each match has at most 3 sets, there are occasional values
+# in the data frame that have a 'DEF' or 'RET' occupying the space of a
+# fourth set. These indicate that a player was disqualified or quit with
+# injury during the match.
 DF2 = DF %>%
   separate(
     .,
@@ -132,8 +143,8 @@ DF2 = DF %>%
     into = c('set1', 'set2', 'set3', 'set4'),
     fill = 'right'
   )
-head(DF2)
 
+# Need to assess each set differently
 DF_set1 = DF2 %>%
   select(., year,
          tourney_name,
@@ -158,6 +169,8 @@ DF_set3 = DF2 %>%
          setscore = set3) %>%
   mutate(., set = 3)
 
+# Clean up strings representing set scores, convert to numeric,
+# Separate into two distinct columns of game scores
 DF_sets = bind_rows(DF_set1, DF_set2, DF_set3) %>%
   filter(
     .,!grepl("[a-z]|]|\\[", setscore, ignore.case = TRUE),
@@ -195,9 +208,15 @@ DF_sets = bind_rows(DF_set1, DF_set2, DF_set3) %>%
     set
   )
 
-DF_sets
 
+# Clean up tournament name strings
 DF_sets$tourney_name = tolower(x = DF_sets$tourney_name)
+
+
+# The following steps finally combine information from 'matchstats' with
+# information from the yearly WTA matches. The former did not indicate
+# whether 'player 1' or 'player 2' was the winner. The purpose of the following
+# joins is to add in this information.
 
 placeholder1 = inner_join(
   DF_sets,
@@ -255,8 +274,7 @@ master = bind_rows(placeholder1, placeholder2) %>%
          loser_games = pmin(games1, games2)) %>%
   select(.,-games1,-games2)
 
-master
-
+# Statistics for winning players in sets
 master_W = master %>%
   select(
     .,
@@ -268,6 +286,7 @@ master_W = master %>%
     games_lost = loser_games
   )
 
+# Statistics for losing players in sets
 master_L = master %>%
   select(
     .,
@@ -280,9 +299,9 @@ master_L = master %>%
   )
 
 master_allsets = bind_rows(master_W, master_L)
-master_allsets
 
-
+# Defining 'aggression' (mean_per_game) and 'consistency'
+# (winners_to_unforced_ratio), which are central to the analysis.
 master_means = master_allsets %>%
   group_by(., year, name) %>%
   summarise(
@@ -290,8 +309,10 @@ master_means = master_allsets %>%
     mean_per_game = sum(winners + unforced) / sum(games_won + games_lost),
     winners_to_unforced_ratio = sum(winners) / (sum(unforced))
   )
-master_means
 
+
+# Making the distinctions between aggressive/defensive and consistent/
+# inconsistent players
 yearly_means = master_means %>% 
   group_by(., year) %>% 
   summarise(.,
@@ -314,6 +335,8 @@ master_means = inner_join(master_means, yearly_means) %>%
 master_means = master_means %>%
   unite(., style, aggression, consistency, sep = ', ')
 
+
+# How many players of each style are there per year?
 style_counts =  master_means %>%
   group_by(., year) %>%
   summarise(., year, style, number = n()) %>% 
@@ -322,16 +345,17 @@ style_counts =  master_means %>%
 style_counts
 
 
+# Summarizing player's styles per year with no other statistics.
 just_styles = master_means %>%
   select(., year, name, style)
 
-
+# Contains important information by set: winners, errors, games won, games lost,
+# player name, year, style
 W_UE_by_style = inner_join(master_allsets,
                            just_styles,
                            by = c('name', 'year'))
-W_UE_by_style
 
-
+# similar to W_UE_by_style, but distinguishes between winning and losing player
 WL_by_style =  inner_join(master,
                           just_styles,
                           by = c('winner_name' = 'name', 'year')) %>%
@@ -340,9 +364,10 @@ WL_by_style =  inner_join(master,
   inner_join(., just_styles, by = c('loser_name' = 'name', 'year')) %>%
   rename(.,
          loser_style = style)
-WL_by_style
 
 
+# The following steps find the win percent of players of each style against
+# players of other styles
 style_matchups = WL_by_style %>%
   group_by(.,
            year,
@@ -353,7 +378,6 @@ style_matchups = WL_by_style %>%
             loser_games = sum(loser_games)) %>%
   filter(.,
          (winner_style != loser_style))
-style_matchups
 
 
 test_1 = style_matchups %>%
@@ -380,6 +404,7 @@ style_matchups = bind_rows(test_1, test_2) %>%
 style_matchups
 
 
+# Overall win percents of different styles of players
 style_win_pcts = W_UE_by_style %>%
   group_by(., year, style) %>%
   summarise(
@@ -388,42 +413,9 @@ style_win_pcts = W_UE_by_style %>%
     games_lost = sum(games_lost),
     win_percent = sum(games_won) / sum(games_won + games_lost)
   )
-style_win_pcts
 
 
-#   return(
-#     list(
-#       master_means, --->players.ratios.style
-#       style_win_pcts, --->win.pct.by.style
-#       style_counts, --->style.counts
-#       style_matchups --->style.matchups
-#       W_UE_by_style --->by.style
-#     )
-#   )
-# }
-
-
-for_ratios_histogram = master_means %>% 
-  gather(., key = stat_type, value = ratio, mean_per_game:winners_to_unforced_ratio) %>% 
-  select(year, stat_type, ratio)
-
-
-
-
-
-year = rep(2012:2020, c(4, 4, 4, 4, 4, 4, 4, 4, 4))
-style = rep(
-  c(
-    'aggressive, consistent',
-    'aggressive, inconsistent',
-    'defensive, consistent',
-    'defensive, inconsistent'
-  ),
-  9
-)
-
-
-
+# Correlations to include in correlation graph
 correlation_df = W_UE_by_style %>% 
   group_by(., name) %>% 
   summarise(.,
@@ -441,7 +433,7 @@ correlation_df = W_UE_by_style %>%
             cor.wtur = cor(win_percent, wtur)) %>% 
   gather(., corr.between, corr.coef, 2:5)
 
-
+# Highlighting players that have won Grand Slams in the years studied.
 with_GS = master_means %>%
   mutate(
     .,
@@ -500,6 +492,7 @@ with_GS = master_means %>%
     )
   )
 
+# A scatter plot of players' consistency vs aggression
 GS_plot = function(yr, df) {
     df = filter(df, year == yr)
     scatter.year = df %>% 
@@ -514,11 +507,13 @@ GS_plot = function(yr, df) {
       size = 4) +
     xlab('Number of winners and\nunforced errors per game') +
       ylab('Ratio of winners to unforced errors') +
-      ggtitle('Scatter plot of aggression\nvs. consistency',
-              subtitle = 'Points corresponding to Grand Slam\nwinners are in green')
+      ggtitle('Scatter Plot of Aggression\nvs. Consistency',
+              subtitle = 'Points corresponding to Grand Slam\nwinners are in green') +
+      theme(panel.border = element_rect(color = "black", fill=NA, size=2))
     return(scatter.year)
 }
 
+# A plot of win percents by player style
 win_percent_plot = function(yr, df) {
   df = filter(df, year == yr)
   pcts.bar = df %>%
@@ -526,14 +521,16 @@ win_percent_plot = function(yr, df) {
     geom_col(aes(fill = style)) +
     scale_fill_brewer(name = 'Style', palette = 'RdGy') +
     xlab('Player style') +
-    ggtitle('% games won by player style') +
+    ggtitle('% Games Won by Player Style') +
     ylab('Win %') +
     theme(axis.text.x=element_blank(),
-          axis.ticks.x=element_blank()) +
+          axis.ticks.x=element_blank(),
+          panel.border = element_rect(color = "black", fill=NA, size=2)) +
     scale_y_continuous(name = 'Win %', breaks = c(0, 25, 50, 75, 100))
   return(pcts.bar)
 }
 
+# A head-to-head plot of different player styles
 matchups_plot = function(yr, df) {
   df = filter(df, year == yr)
   matchups.bar = df %>%
@@ -546,10 +543,12 @@ matchups_plot = function(yr, df) {
                                 'defensive,\ninconsistent')) +
     scale_fill_brewer(name = 'Opponent style', palette = 'RdGy') +
     scale_y_continuous(name = 'Win %', breaks = c(0, 25, 50, 75, 100)) +
-    ggtitle('% of Games Won Against\nPlayers of Different Styles')
+    ggtitle('% of Games Won Against\nPlayers of Different Styles') +
+    theme(panel.border = element_rect(color = "black", fill=NA, size=2))
   return(matchups.bar)
 }
 
+# A plot of correlations between win percent and several other variables.
 corr_plot = correlation_df %>%
   ggplot(aes(x = style, y = corr.between, )) +
   geom_tile(aes(fill = corr.coef,), colour = 'black') +
@@ -579,15 +578,27 @@ corr_plot = correlation_df %>%
     )
   )
 
+# What percent of players belong to each style each year?
 counts_plot = style_counts %>%
   ggplot(aes(x = year, y = percent*100)) +
   geom_col(aes(fill = style), position = 'fill') +
   scale_fill_brewer(palette = 'RdGy') +
   ggtitle('% of Players Belonging to Each Style') +
   scale_x_discrete(name = 'Year', breaks = 2*(1006:1010)) +
-  ylab('% of Players')
+  ylab('% of Players') +
+  theme(panel.border = element_rect(color = "black", fill=NA, size=2))
 
 
+# This is used to build the histograms for consistency and aggression.
+# Gathering to enable user to provide either consistency or aggression as input.
+for_ratios_histogram = master_means %>% 
+  gather(., key = stat_type, value = ratio, mean_per_game:winners_to_unforced_ratio) %>% 
+  select(year, stat_type, ratio)
+
+
+# Displaying the distributions of aggression and consistency per year.
+# Consistency distributions tend to be right-skewed, which is why we use
+# the median as the cutoff point between consistent and inconsistent.
 means_plot = function(yr, df, measurement) {
   df = filter(df, year == yr, stat_type == measurement)
   consistency_histogram = df %>% 
@@ -595,10 +606,13 @@ means_plot = function(yr, df, measurement) {
     geom_histogram(color = 'black', fill = 'lavender', bins = 20) +
     xlab('Ratio') +
     ylab('Frequency') +
-    ggtitle('Distribution of Aggression and Consistency')
+    ggtitle('Distribution of Aggression and Consistency') +
+    theme(panel.border = element_rect(color = "black", fill=NA, size=2))
   return(consistency_histogram)
 }
 
+
+# Tracking Grand Slam winners' playing style and win percent through the years.
 GS_winners = unique(with_GS[with_GS$GS == 'yes',]$name)
 
 
@@ -615,9 +629,12 @@ GS_winners_plot = function(player) {
     scale_fill_brewer(name = 'Style', palette = 'RdGy') +
     scale_color_manual(name = 'Won Grand Slam?', values = c("red", "green")) +
     scale_y_continuous(name = 'Win %', breaks = c(0, 25, 50, 75, 100)) +
-    scale_x_discrete(name = 'Year', breaks = 2*(1006:1010))
+    scale_x_discrete(name = 'Year', breaks = 2*(1006:1010)) +
+    ggtitle('Win % of Grand Slam Champions, 2012-2020') +
+    theme(panel.border = element_rect(color = "black", fill=NA, size=2))
   return(winners_chart)
 }
 
+# For using in the selectizeInput for histograms.
 info_list = list('Aggression' = 'mean_per_game',
                  'Consistency' = 'winners_to_unforced_ratio')
