@@ -512,10 +512,10 @@ GS_plot = function(yr, df) {
       data = df %>% filter(., GS == 'yes'),
       color = 'green',
       size = 4) +
-    xlab('Number of winners and unforced errors per game') +
+    xlab('Number of winners and\nunforced errors per game') +
       ylab('Ratio of winners to unforced errors') +
-      ggtitle('Scatter plot of aggression vs. consistency',
-              subtitle = 'Points corresponding to Grand Slam winners are in green')
+      ggtitle('Scatter plot of aggression\nvs. consistency',
+              subtitle = 'Points corresponding to Grand Slam\nwinners are in green')
     return(scatter.year)
 }
 
@@ -524,44 +524,78 @@ win_percent_plot = function(yr, df) {
   pcts.bar = df %>%
     ggplot(., aes(x = style, y = win_percent*100)) +
     geom_col(aes(fill = style)) +
-    scale_fill_brewer(palette = 'RdGy') +
-    xlab('Style') +
+    scale_fill_brewer(name = 'Style', palette = 'RdGy') +
+    xlab('Player style') +
     ggtitle('% games won by player style') +
     ylab('Win %') +
     theme(axis.text.x=element_blank(),
-          axis.ticks.x=element_blank())
+          axis.ticks.x=element_blank()) +
+    scale_y_continuous(name = 'Win %', breaks = c(0, 25, 50, 75, 100))
   return(pcts.bar)
 }
 
 matchups_plot = function(yr, df) {
   df = filter(df, year == yr)
   matchups.bar = df %>%
-    ggplot(., aes(x = style, y = win_percent)) +
+    ggplot(., aes(x = style, y = win_percent*100)) +
     geom_col(aes(fill = opponent), position = 'dodge') +
-    scale_fill_brewer(palette = 'RdGy')
+    xlab('Player style') +
+    scale_x_discrete(labels = c('aggressive,\nconsistent',
+                                'aggressive,\ninconsistent',
+                                'defensive,\nconsistent',
+                                'defensive,\ninconsistent')) +
+    scale_fill_brewer(name = 'Opponent style', palette = 'RdGy') +
+    scale_y_continuous(name = 'Win %', breaks = c(0, 25, 50, 75, 100)) +
+    ggtitle('% of Games Won Against\nPlayers of Different Styles')
   return(matchups.bar)
 }
 
-corr_plot = correlation_df %>% 
-  ggplot(aes(x = style, y = corr.between,)) +
-  geom_tile(aes(fill = corr.coef, ), colour = 'black') +
+corr_plot = correlation_df %>%
+  ggplot(aes(x = style, y = corr.between, )) +
+  geom_tile(aes(fill = corr.coef,), colour = 'black') +
   scale_fill_gradient2(
+    name = 'Correlation coefficient',
     low = "firebrick",
     high = "blue",
     mid = "white",
-    midpoint = 0)
+    midpoint = 0
+  ) +
+  scale_x_discrete(
+    name = "Player style",
+    labels = c(
+      'aggressive,\nconsistent',
+      'aggressive,\ninconsistent',
+      'defensive,\nconsistent',
+      'defensive,\ninconsistent'
+    )
+  ) +
+  scale_y_discrete(
+    name = "Correlation between win percent and:",
+    labels = c(
+      'aggression',
+      'mean errors\nper game',
+      'mean winners\nper game',
+      'consistency'
+    )
+  )
 
 counts_plot = style_counts %>%
-  ggplot(aes(x = year, y = percent)) +
+  ggplot(aes(x = year, y = percent*100)) +
   geom_col(aes(fill = style), position = 'fill') +
-  scale_fill_brewer(palette = 'RdGy')
+  scale_fill_brewer(palette = 'RdGy') +
+  ggtitle('% of Players Belonging to Each Style') +
+  scale_x_discrete(name = 'Year', breaks = 2*(1006:1010)) +
+  ylab('% of Players')
 
 
 means_plot = function(yr, df, measurement) {
   df = filter(df, year == yr, stat_type == measurement)
   consistency_histogram = df %>% 
     ggplot(aes(x = ratio)) +
-    geom_histogram(color = 'black', fill = 'lavender', bins = 20)
+    geom_histogram(color = 'black', fill = 'lavender', bins = 20) +
+    xlab('Ratio') +
+    ylab('Frequency') +
+    ggtitle('Distribution of Aggression and Consistency')
   return(consistency_histogram)
 }
 
@@ -576,8 +610,14 @@ GS_winners_plot = function(player) {
     summarise(., win_percent = sum(games_won)/sum(games_won + games_lost), GS) %>%
     distinct(.) %>% 
     inner_join(., just_styles, by = c('year', 'name')) %>% 
-    ggplot(., aes(x = year, y = win_percent)) +
+    ggplot(., aes(x = year, y = win_percent*100)) +
     geom_col(aes(fill = style, color = GS), size = 2) +
-    scale_fill_brewer(palette = 'RdGy')
+    scale_fill_brewer(name = 'Style', palette = 'RdGy') +
+    scale_color_manual(name = 'Won Grand Slam?', values = c("red", "green")) +
+    scale_y_continuous(name = 'Win %', breaks = c(0, 25, 50, 75, 100)) +
+    scale_x_discrete(name = 'Year', breaks = 2*(1006:1010))
   return(winners_chart)
 }
+
+info_list = list('Aggression' = 'mean_per_game',
+                 'Consistency' = 'winners_to_unforced_ratio')
