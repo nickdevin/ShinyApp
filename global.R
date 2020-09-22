@@ -3,6 +3,7 @@ library(tidyr)
 library(ggplot2)
 library(shiny)
 library(shinyWidgets)
+library(shinydashboard)
 
 matchstats = read.csv(file = './charting-w-stats-Overview.csv')
 
